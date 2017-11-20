@@ -22,6 +22,7 @@ on election night.
 
 From http://www.chicagoelections.com/results/ap/text_layout.txt:
 
+```
 Summary Export File Format      Length  Column Position
 Contest Code                    4       1-4
 Candidate Number                3       5-7
@@ -34,6 +35,7 @@ Contest name                    56      33-88
 Candidate Name                  38      89-126
 Political subdivision name      25      127-151
 Vote For                        3       152-154
+```
 
 ### Gotchas
 
