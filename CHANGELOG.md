@@ -7,6 +7,7 @@ CHANGELOG
 * Python 3 only
 * Refactored precinct results for updated CBOE website.
 * Added CI
+* Removed precinct CLI (might bring this back later)
 
 0.2
 ---
