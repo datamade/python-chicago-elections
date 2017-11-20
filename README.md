@@ -56,41 +56,46 @@ At some point at the end of election night, the results file will no longer be a
 
 To access the results:
 
-    from chi_elections import SummaryClient
+```python
+from chi_elections import SummaryClient
 
-    client = SummaryClient()
-    client.fetch()
-    mayor = next(r for r in client.races if r.name == "Mayor")
-    self.assertEqual(len(mayor.candidates), 5)
+client = SummaryClient()
+client.fetch()
+mayor = next(r for r in client.races if r.name == "Mayor")
+self.assertEqual(len(mayor.candidates), 5)
 
-    rahm = next(c for c in mayor.candidates
-                if c.full_name == "RAHM EMANUEL")
-    print(rahm.vote_total)
+rahm = next(c for c in mayor.candidates
+            if c.full_name == "RAHM EMANUEL")
+print(rahm.vote_total)
+```
 
 If you want to specify an alternate url, for example the test URL, pass it to the constructor of `SummaryClient`:
 
-    client = SummaryClient(url='http://www.chicagoelections.com/results/ap/summary.txt')
-
+```python
+client = SummaryClient(url='http://www.chicagoelections.com/results/ap/summary.txt')
+```
 
 Precinct Results
 ----------------
 
-After election night, precinct-level results are published to http://www.chicagoelections.com/en/election3.asp.  The results are HTML files, so we have to scrape the results from HTML tables.
+After election night, precinct-level results are published to https://chicagoelections.com/en/election-results.html.  The results are HTML files, so we have to scrape the results from HTML tables.
 
 ### Results client
 
 To access the results:
 
-    from chi_elections import elections
+from chi_elections import elections
 
-    muni_elections = [election for name, election in
-                      elections().items() if 'municipal' in name.lower()]
+```python
+muni_elections = [election for name, election in
+                  elections().items() if 'municipal' in name.lower()]
 
-    for election in muni_elections:
-        for name, race in election.races.items():
-            if 'alderman' in name.lower() or 'mayor' in name.lower():
-                for precinct, votes in race.precincts.items():
-                    print(precinct, votes)
+for election in muni_elections:
+    for name, race in election.races.items():
+        if 'alderman' in name.lower() or 'mayor' in name.lower():
+            for precinct, votes in race.precincts.items():
+                print(precinct, votes)
+```                
 
 ### Command Line Interface
 
