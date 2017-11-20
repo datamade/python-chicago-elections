@@ -86,7 +86,7 @@ To access the results:
         for name, race in election.races.items():
             if 'alderman' in name.lower() or 'mayor' in name.lower():
                 for precinct, votes in race.precincts.items():
-		    print(precinct, votes)
+                    print(precinct, votes)
 
 ### Command Line Interface
 
