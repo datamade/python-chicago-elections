@@ -1,6 +1,8 @@
 chi-elections
 =============
 
+[![Build Status](https://travis-ci.org/datamade/python-chicago-elections.svg?branch=master)](https://travis-ci.org/datamade/python-chicago-elections)
+
 chi-elections is a Python package for loading and parsing election results from the [Chicago Board of Elections](http://www.chicagoelections.com/).
 
 Summary Results
