@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+0.3
+---
+
+* Python 3 only
+* Refactored precinct results for updated CBOE website.
+* Added CI
+
 0.2
 ---
 
