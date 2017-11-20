@@ -1,217 +1,60 @@
 """
 Parse tabular precinct-level results.
 """
-from collections import OrderedDict
+import functools
+import collections
 
-from lxml import html
+import lxml.html
 import requests
-from six.moves.urllib.parse import urlencode, urlparse, parse_qs
-from six import text_type
-
-from chi_elections.transforms import replace_single_quotes
-
-class BaseParser(object):
-    @classmethod
-    def clean_cell(cls, s):
-        return text_type(s).strip()
-
-    def get_row_data(self, tr):
-        return [self.clean_cell(td.text_content()) for td in tr.xpath('td')]
-
-    @classmethod
-    def clean_candidate_name(cls, s):
-        return replace_single_quotes(s)
-
-    def parse_candidates(self, row):
-        candidates = {}
-        for i, val in enumerate(row):
-            if val in (self.reporting_unit_column_name, "%"):
-                continue
-
-            candidates[i] = self.clean_candidate_name(val)
-
-        return candidates
-
-    def parse_result_row(self, row, candidate_lookup):
-        results = []
-        result = None
-        for i, val in enumerate(row):
-            if i == 0:
-                reporting_unit_id = val
-                continue
-
-            try:
-                candidate = candidate_lookup[i]
-                if result is not None:
-                    # If a previous result has been built, add it to our list
-                    results.append(result)
-                result = {
-                    'reporting_unit_id': reporting_unit_id,
-                    'candidate': candidate,
-                    'votes': int(val),
-                }
-            except KeyError:
-                # No candidate at this column index.
-                # Assume it's the percentage column
-                result['percent'] = float(val.strip('%'))
-
-        if result is not None:
-            results.append(result)
-
-        return results
-
-    def parse(self, html_string):
-        results = []
-
-        rows = html.fromstring(html_string).xpath('//table[1]/tr')
-        candidate_lookup = None
-        for tr_idx, tr in enumerate(rows):
-            row = self.get_row_data(tr)
-            if len(row) < 2:
-                # This is a blank row, so skip
-                continue
-
-            if row[0] == self.reporting_unit_column_name:
-                # This is the header row
-                if candidate_lookup is None:
-                    candidate_lookup = self.parse_candidates(row)
-                continue
-
-            row_results = self.parse_result_row(row, candidate_lookup)
-            results.extend(row_results)
-
-        return results
-
-
-class WardParser(BaseParser):
-    reporting_unit_column_name = 'Ward'
-
-
-class PrecinctParser(BaseParser):
-    reporting_unit_column_name = 'Pct'
-
-
-class ReportingUnit(object):
-    def __init__(self, number):
-        self.number = number
-        self._results = []
-
-    def add_result(self, result):
-        self._results.append(result)
-
-    @property
-    def results(self):
-        return self._results
-
-
-class Ward(ReportingUnit):
-    level = 'ward'
-
-    def __init__(self, number):
-        super(Ward, self).__init__(number)
-        self._precincts = {}
-
-    def get_or_create_precinct(self, number):
-        try:
-            return self._precincts[number]
-        except KeyError:
-            self._precincts[number] = Precinct(number, self)
-            return self._precincts[number]
-
-    def __str__(self):
-        return "{:02d}".format(self.number)
-
-    def __repr__(self):
-        return "Ward({})".format(self.__str__())
-
-
-class Precinct(ReportingUnit):
-    level = 'precinct'
-
-    def __init__(self, number, ward):
-        super(Precinct, self).__init__(number)
-        self.ward = ward
-
-    def __str__(self):
-        return "{:02d}{:03d}".format(int(self.ward.number),
-            int(self.number))
-
-    def __repr__(self):
-        return "Precinct({})".format(self.__str__())
-
-
-class Candidate(object):
-    def __init__(self, name):
-        self.name = name
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return "Candidate({})".format(self.name)
-
 
 class Election(object):
-    def __init__(self, elec_code, name=None, client=None):
+    ELECTION_URL = 'https://chicagoelections.com/en/election-results.asp'
+    
+    def __init__(self, elec_code, name, session):
         self.elec_code = elec_code
         self.name = name
-
-        if client is None:
-            self.client = PrecinctClient()
-
-        self._races_by_number = None
-        self._races_by_name = None
-        self._races = None
+        self.url = self.ELECTION_URL
+        self.session = session
+        self._turnout = None
 
     @property
+    def turnout(self):
+        if not self._turnout:
+            self.races
+        return self._turnout
+
+    @property
+    @functools.lru_cache(maxsize=1)
     def races(self):
-        if self._races is None:
-            self.fetch_races()
+        response = self.session.get(self.url,
+                                    params={'election': self.elec_code})
+        page = lxml.html.fromstring(response.text)
+        option_els = page.xpath(
+            "//select[@name='race']/option")
 
-        return self._races
-
-    def add_race(self, race):
-        if race.number is not None:
-            self._races_by_number[race.number] = race
-
-        if race.name is not None:
-            self._races_by_name[race.name] = race
-
-        self._races.append(race)
-
-    def get_race_by_number(self, race_number):
-        return self._races_by_number[race_number]
-
-    def get_race_by_name(self, race_name):
-        return self._races_by_name[race_name]
-
-    def fetch_races(self):
-        race_html = self.client.fetch_election_html(self.elec_code)
-        option_els = html.fromstring(race_html).xpath(
-            "//select[@name='D3']/option")
-
-        self._races_by_number = {}
-        self._races_by_name = {}
-        self._races = []
+        races = {}
 
         for option_el in option_els:
-            race_name = option_el.get('value')
-            if not race_name:
-                continue
-            race = Race(self, name=race_name)
+            name = option_el.text
+            race_num = option_el.get('value')
+            if 'registered voters' in name.lower():
+                self._turnout = Race(self.elec_code,
+                                     name, race_num, self.session)
+            else:
+                races[option_el.text] = Race(self.elec_code,
+                                             name,
+                                             race_num, self.session)
 
-
+        return races
+    
 class Race(object):
-    def __init__(self, election, name=None, number=None):
+    RESULTS_URL = 'https://chicagoelections.com/en/data-export.asp'
+    
+    def __init__(self, elec_code, name=None, number=None, session=None):
+        self.elec_code = elec_code
         self.number = number
         self.name = name
-        self.election = election
-        self.client = election.client
-
-        election.add_race(self)
-
-        self._results = None
-        self._wards = None
+        self.session = session
 
     def __str__(self):
         if self.name and self.number:
@@ -224,205 +67,89 @@ class Race(object):
             return ""
 
     @property
-    def results(self):
-        if self._results is None:
-            self._results = self.fetch_results()
+    @functools.lru_cache(maxsize=1)
+    def precincts(self):
+        results_d = {}
+        
+        response = self.session.get(self.RESULTS_URL,
+                                    params = {'election': self.elec_code,
+                                              'race': self.number})
+        page = lxml.html.fromstring(response.text)
 
-        return self._results
+        tables = page.xpath('//table')
+
+        total = tables.pop(0)
+        header_row = total.xpath('./tr')[0]
+        keys = ['precinct']
+        for cell in header_row.xpath('./td//text()'):
+            keys.append(cell.strip().replace("''", "'"))
+
+        for table in tables:
+            rows = table.xpath('./tr')
+            ward = rows.pop(0).xpath('./td//text()')[0]
+            ward_num = int(ward.split()[-1])
+            rows.pop(0) # ignore repeated header row
+            for row in rows:
+                votes = {}
+                for key, cell in zip(keys, row.xpath('./td//text()')):
+                    if cell == 'Total': # ignore ward subtotals
+                        break
+                    if '%' in key or key == 'Votes': # ignore derived vars
+                        continue
+                    votes[key] = int(cell.strip().replace(',', ''))
+                else:
+                    precinct = votes.pop('precinct')
+                    results_d[(ward_num, precinct)] = votes
+
+        return results_d
 
     @property
+    @functools.lru_cache(maxsize=1)
     def wards(self):
-        if self._wards is None:
-            self.fetch_wards()
+        results_d = collections.defaultdict(lambda: collections.defaultdict(int))
+        for (ward, precinct), precinct_votes in self.precincts.items():
+            for choice, votes in precinct_votes.items():
+                results_d[ward][choice] += votes
 
-        return self._wards.values()
+        results_d = dict(results_d)
+        for k, v in results_d.items():
+            results_d[k] = dict(v)
 
-    def fetch_wards(self):
-        ward_results_html = self.client.fetch_ward_results_html(
-            elec_code=self.election.elec_code,
-            race_name=self.name
-        )
-
-        if self.number is None:
-            first_ward_url = html.fromstring(ward_results_html).xpath('//a[1]')[0].get('href')
-            # TODO: Factor this out
-            query_string = urlparse(first_ward_url).query
-            query_string_parsed = parse_qs(query_string)
-            self.number = int(query_string_parsed['race_number'][0])
-
-        parser = WardParser()
-        results_attrs = parser.parse(ward_results_html)
-        self._wards = {}
-
-        for result_attrs in results_attrs:
-            if result_attrs['reporting_unit_id'] == "Total":
-                continue
-
-            ward_number = int(result_attrs['reporting_unit_id'])
-            self._wards.setdefault(ward_number, Ward(
-                number=ward_number,
-            ))
-
-    def fetch_results(self):
-        results = []
-        for ward in self.wards:
-            ward_results =  self.client.fetch_precinct_results(
-                elec_code=self.election.elec_code,
-                race=self,
-                ward_num=ward.number)
-            results.extend(ward_results)
-
-        return results
-
-
-class Result(object):
-    def __init__(self, candidate, votes, reporting_unit, percent=None, race=None):
-        self.candidate = candidate
-        self.votes = votes
-        self.reporting_unit = reporting_unit
-        self.percent = percent
-        self.race = race
-
-        self.reporting_unit.add_result(self)
-
-    def __str__(self):
-        return "{} - {} ({})".format(self.candidate, self.votes,
-            self.reporting_unit)
-
-    def __repr__(self):
-        return "Result(candidate={}, reporting_unit={}, votes={})".format(
-            repr(self.candidate), repr(self.reporting_unit), self.votes
-        )
+        return results_d
 
     @property
-    def ward_number(self):
-        if self.reporting_unit.level == "ward":
-            return self.reporting_unit.number
-        elif self.reporting_unit.level == "precinct":
-            return self.reporting_unit.ward.number
-        else:
-            return None
+    @functools.lru_cache(maxsize=1)
+    def total(self):
+        results_d = collections.defaultdict(int)
+        for precinct_votes in self.precincts.values():
+            for choice, votes in precinct_votes.items():
+                results_d[choice] += votes
 
-    @property
-    def precinct_number(self):
-        if self.reporting_unit.level == "precinct":
-            return self.reporting_unit.number
-        else:
-            return None
+        return dict(results_d)
 
-    def serialize(self):
-        return OrderedDict((
-            ('race_name', self.race.name),
-            ('race_number', self.race.number),
-            ('candidate', self.candidate.name),
-            ('ward', self.ward_number),
-            ('precinct', self.precinct_number),
-            ('votes', self.votes),
-        ))
+            
 
+def elections(session=None):
+    '''List all available elections'''
 
-class PrecinctClient(object):
-    DEFAULT_PRECINCT_URL = 'http://www.chicagoelections.com/en/pctlevel3.asp'
-    DEFAULT_ELECTION_URL = 'http://www.chicagoelections.com/en/wdlevel3.asp'
+    election_url = 'https://chicagoelections.com/en/election-results.html'
 
-    def __init__(self, election_url=None, precinct_url=None):
-        if election_url is None:
-            election_url = self.DEFAULT_ELECTION_URL
+    if session is None:
+        session = requests.Session()
+    else:
+        session = session
+    
+    response = session.get(election_url)
+    page = lxml.html.fromstring(response.text)
 
-        self._election_url = election_url
+    election_links = page.xpath("//a[starts-with(@href, 'election-results.asp?election=')]")
 
-        if precinct_url is None:
-            precinct_url = self.DEFAULT_PRECINCT_URL
+    elex = {}
 
-        self._precinct_url = precinct_url
+    for link in election_links:
+        name = link.text
+        election_code = link.get('href').split('=')[-1]
+        elex[name] = Election(election_code, name, session)
 
-        self._parser = PrecinctParser()
-        self._wards = {}
-        self._candidates_by_name = {}
-
-    def get_election_url(self, elec_code):
-        url = self._election_url
-        query_params = {
-            'elec_code': elec_code,
-        }
-        qs = urlencode(query_params)
-        return url + '?' + qs
-
-    def fetch_election_html(self, elec_code):
-        url = self.get_election_url(elec_code)
-        return requests.get(url).text
-
-    def fetch_ward_results_html(self, elec_code, race_name):
-        url = self.get_election_url(elec_code)
-        return requests.post(url, data={
-                'VTI-GROUP': 0,
-                'flag': 1,
-                'B1': 'View The Results',
-                'D3': race_name,
-            }).text
-
-    def get_precinct_result_url(self, elec_code, race_number, ward):
-        url = self._precinct_url
-        query_params = {
-            'elec_code': elec_code,
-            'race_number': race_number,
-            'Ward': ward,
-        }
-        qs = urlencode(query_params)
-        return url + '?' + qs
-
-    def fetch_precinct_results_html(self, elec_code, race_number, ward):
-        url = self.get_precinct_result_url(elec_code, race_number, ward)
-        return requests.get(url).text
-
-    def get_or_create_ward(self, ward_num):
-        try:
-            return self._wards[ward_num]
-        except KeyError:
-            self._wards[ward_num] = Ward(ward_num)
-            return self._wards[ward_num]
-
-    def get_or_create_candidate_by_name(self, name):
-        try:
-            return self._candidates_by_name[name]
-        except KeyError:
-            self._candidates_by_name[name] = Candidate(name)
-            return self._candidates_by_name[name]
-
-    def create_ward_result(self, result_dict, ward):
-        candidate = self.get_or_create_candidate_by_name(result_dict['candidate'])
-        return Result(candidate, result_dict['votes'],
-            percent=result_dict['percent'], reporting_unit=ward)
-
-    def create_result(self, result_dict, race, ward_num):
-        ward = self.get_or_create_ward(ward_num)
-        if result_dict['reporting_unit_id'] == 'Total':
-            reporting_unit = ward
-        else:
-            reporting_unit = ward.get_or_create_precinct(result_dict['reporting_unit_id'])
-
-        candidate = self.get_or_create_candidate_by_name(result_dict['candidate'])
-
-        if isinstance(race, Race):
-            race_model = race
-        else:
-            race_model = Race(number=race)
-
-        return Result(
-            candidate=candidate,
-            votes=result_dict['votes'],
-            reporting_unit=reporting_unit,
-            percent=result_dict.get('percent', None),
-            race=race_model
-        )
-
-    def fetch_precinct_results(self, elec_code, race, ward_num):
-        if isinstance(race, Race):
-            race_number = race.number
-        else:
-            race_number = race
-
-        html_string = self.fetch_precinct_results_html(elec_code, race_number,
-            ward_num)
-        results = self._parser.parse(html_string)
-        return [self.create_result(rd, race, ward_num) for rd in results]
+    return elex
+        

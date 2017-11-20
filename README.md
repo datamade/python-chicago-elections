@@ -77,16 +77,16 @@ After election night, precinct-level results are published to http://www.chicago
 
 To access the results:
 
-    from chi_elections import PrecinctClient
+    from chi_elections import elections
 
-    client = PrecinctClient()
-    client.fetch_elections()
-    election = next(e for e in client.elections
-                    if e.name == "2015 Municipal Runoffs - 4/7/15")
-    election.fetch_races()
-    race = next(r for r in client.races
-                if r.name == "Mayor")
-    race.fetch_results()
+    muni_elections = [election for name, election in
+                      elections().items() if 'municipal' in name.lower()]
+
+    for election in muni_elections:
+        for name, race in election.races.items():
+            if 'alderman' in name.lower() or 'mayor' in name.lower():
+                for precinct, votes in race.precincts.items():
+		    print(precinct, votes)
 
 ### Command Line Interface
 
@@ -98,8 +98,3 @@ To hit the test file:
 
     chi_elections summary --test > results.csv
 
-To download precinct results, available the day after:
-
-    chi_elections precincts --race "Delegate, National Convention 4th DEM" 5
-
-In this example the `5` is the election code, that can be found in the URL when you visit a page like http://www.chicagoelections.com/en/wdlevel3.asp?elec_code=5
