@@ -39,11 +39,6 @@ setup(
             'chi_elections = chi_elections.cli:main'
         ),
     },
-    tests_require=[
-        'nose',
-        'responses',
-    ],
-    test_suite='nose.collector',
     keywords=['elections', 'Chicago', 'results', 'parser', 'scraper'],
     classifiers=[
         'Development Status :: 3 - Alpha',

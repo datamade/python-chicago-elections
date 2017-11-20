@@ -31,12 +31,8 @@ class FixedWidthField(object):
         self.name = None
 
     def parse(self, s):
-        try:
-            s_decoded = s.decode('utf-8')
-        except UnicodeEncodeError:
-            s_decoded = s
 
-        val = s_decoded[self.index:self.index + self.length]
+        val = s[self.index:self.index + self.length]
         val = val.strip()
         if self.transform is None:
             return val
@@ -50,7 +46,7 @@ class FixedWidthField(object):
 class FixedWidthParserMeta(type):
     def __new__(cls, name, parents, dct):
         dct['_fields'] = []
-        for k, v in dct.items():
+        for k, v in list(dct.items()):
             if isinstance(v, FixedWidthField):
                 v.name = k
                 dct['_fields'].append(v)
@@ -60,8 +56,7 @@ class FixedWidthParserMeta(type):
         return new_cls
 
 
-class FixedWidthParser(object):
-    __metaclass__ = FixedWidthParserMeta
+class FixedWidthParser(object, metaclass=FixedWidthParserMeta):
 
     def parse_line(self, line):
         attrs = {}
