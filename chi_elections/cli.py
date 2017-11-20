@@ -1,10 +1,7 @@
 import codecs
 import sys
 
-if sys.version_info < 3:
-    from backports import csv
-else:
-    import csv
+import csv
 
 import click
 
