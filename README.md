@@ -49,7 +49,7 @@ This means that you need to:
 * Make sure you store ballot order (Candidate Number in the text layout above) with the candidate.  You'll need to use this, in combination with Contest Code, to look up the cached candidates.
 
 At some point at the end of election night, the results file will no longer be available at http://www.chicagoelections.com/ap/summary.txt and will be available at http://www.chicagoelections.com/results/ap/summary.txt
-.  However, it will not be updated. You'll need to scrape, enter or load results in some other way if you need updates after election night.
+.  ~~However, it will not be updated. You'll need to scrape, enter or load results in some other way if you need updates after election night.~~ As of the April 2, 2019 municipal election, the Chicago Board of Elections says it will keep summary.txt updated until all votes are counted.
 
 
 ### Results client
