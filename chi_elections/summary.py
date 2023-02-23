@@ -116,8 +116,7 @@ class ResultParser(FixedWidthParser):
 
 
 class Result(object):
-    def __init__(self, candidate_number, full_name, party, race, vote_total,
-            reporting_unit_name):
+    def __init__(self, candidate_number, full_name, party, race, vote_total):
         self.candidate_number = candidate_number
         self.full_name = full_name
         self.party = party
@@ -137,10 +136,12 @@ class Result(object):
 
 
 class Race(object):
-    def __init__(self, contest_code, name, precincts_total=0,
-            precincts_reporting=0, vote_for=1):
+    def __init__(self, contest_code, name, reporting_unit_name, total_ballots_cast,
+            precincts_total=0, precincts_reporting=0, vote_for=1):
         self.contest_code = contest_code
         self.name = name
+        self.reporting_unit_name = reporting_unit_name
+        self.total_ballots_cast = total_ballots_cast
         self.candidates = []
         self.precincts_total = precincts_total
         self.precincts_reporting = precincts_reporting
@@ -176,7 +177,6 @@ class SummaryParser(object):
                 party=parsed['party'],
                 race=race,
                 full_name=parsed['candidate_name'],
-                reporting_unit_name=parsed['reporting_unit_name'],
             )
             race.candidates.append(result)
     
@@ -187,6 +187,8 @@ class SummaryParser(object):
             race = Race(
                 contest_code=attrs['contest_code'],
                 name=attrs['race_name'],
+                reporting_unit_name=attrs['reporting_unit_name'],
+                total_ballots_cast=attrs['race_total_ballots_cast'],
                 precincts_total=attrs['precincts_total'],
                 precincts_reporting=attrs['precincts_reporting'],
                 vote_for=attrs['vote_for'],

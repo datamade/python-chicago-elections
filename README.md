@@ -79,9 +79,9 @@ After election night, precinct-level results are published to https://chicagoele
 
 To access the results:
 
+```python
 from chi_elections import elections
 
-```python
 muni_elections = [election for name, election in
                   elections().items() if 'municipal' in name.lower()]
 
