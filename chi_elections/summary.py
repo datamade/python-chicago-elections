@@ -23,15 +23,18 @@ import requests
 from .constants import SUMMARY_URL
 from .transforms import replace_single_quotes
 
+
 class FixedWidthField(object):
     def __init__(self, index, length, transform=None):
-        self.index = index
+        self.index = self._index(index)
         self.length = length
         self.transform = transform
         self.name = None
 
-    def parse(self, s):
+    def _index(self, index):
+        return index
 
+    def parse(self, s):
         val = s[self.index:self.index + self.length]
         val = val.strip()
         if self.transform is None:
@@ -41,6 +44,12 @@ class FixedWidthField(object):
                 return self.transform(val)
             except ValueError:
                 return None
+
+
+class OneIndexedFixedWidthField(FixedWidthField):
+
+    def _index(self, index):
+        return index - 1
 
 
 class FixedWidthParserMeta(type):
@@ -67,34 +76,46 @@ class FixedWidthParser(object, metaclass=FixedWidthParserMeta):
 
 
 class ResultParser(FixedWidthParser):
-    # Summary Export File Format           Length    Column Position
-    # Contest Code                         4         1-4
-    # Candidate Number                     3         5-7
-    # # of Eligible Precincts              4         8-11
-    # Votes                                7         12-18
-    # # Completed precincts                4         19-22
-    # Party Abbreviation                   3         23-25
-    # Political Subdivision Abbreviation   7         26-32
-    # Contest name                         56        33-88
-    # Candidate Name                       38        89-126
-    # Political subdivision name           25        127-151
-    # Vote For                             3         152-154
-    contest_code = FixedWidthField(0, 4, transform=int)
-    candidate_number = FixedWidthField(4, 3, transform=int)
-    precincts_total = FixedWidthField(7, 4, transform=int)
-    vote_total = FixedWidthField(11, 7, transform=int)
-    precincts_reporting = FixedWidthField(18, 4, transform=int)
-    party = FixedWidthField(22, 3)
-    reporting_unit_name = FixedWidthField(25, 7)
-    race_name = FixedWidthField(32, 56)
-    candidate_name = FixedWidthField(88, 38, transform=replace_single_quotes)
-    reporting_unit_name = FixedWidthField(126, 25)
-    vote_for = FixedWidthField(151, 3, transform=int)
+    """
+    Summary Export File Format           Length    Column Position
+
+    Record type                          1         1
+    Global contest order                 5         2-6
+    Global choice order                  5         7-11
+    # Completed precincts                5         12-16
+    Votes                                7         17-23
+    Contest Total registration           7         24-30
+    Contest Total ballots cast           7         31-37
+    Contest Name                        70         38-107
+    Choice Name                         50         108-157
+    Choice Party Name                   50         158-207
+    Choice Party Abbreviation            3         208-210
+    District Type Name                  50         211-260
+    District Type Global Order           5         261-265
+    # of Eligible Precincts              5         266-270
+    Vote For                             2         271-272
+
+    Source: https://chicagoelections.gov/results/ap/SummaryExportFormat.xls
+    """
+    record_type = OneIndexedFixedWidthField(1, 1, transform=int)
+    contest_code = OneIndexedFixedWidthField(2, 5, transform=int)
+    candidate_number = OneIndexedFixedWidthField(7, 5, transform=int)
+    precincts_reporting = OneIndexedFixedWidthField(12, 5, transform=int)
+    vote_total = OneIndexedFixedWidthField(17, 7, transform=int)
+    race_total_registration = OneIndexedFixedWidthField(24, 7, transform=int)
+    race_total_ballots_cast = OneIndexedFixedWidthField(31, 7, transform=int)
+    race_name = OneIndexedFixedWidthField(38, 70)
+    candidate_name = OneIndexedFixedWidthField(108, 50, transform=replace_single_quotes)
+    party = OneIndexedFixedWidthField(158, 50)
+    party_abbreviation = OneIndexedFixedWidthField(208, 3)
+    reporting_unit_name = OneIndexedFixedWidthField(211, 50)
+    reporting_unit_code = OneIndexedFixedWidthField(261, 5, transform=int)
+    precincts_total = OneIndexedFixedWidthField(266, 5, transform=int)
+    vote_for = OneIndexedFixedWidthField(271, 2, transform=int)
 
 
 class Result(object):
-    def __init__(self, candidate_number, full_name, party, race, vote_total,
-            reporting_unit_name):
+    def __init__(self, candidate_number, full_name, party, race, vote_total):
         self.candidate_number = candidate_number
         self.full_name = full_name
         self.party = party
@@ -114,10 +135,12 @@ class Result(object):
 
 
 class Race(object):
-    def __init__(self, contest_code, name, precincts_total=0,
-            precincts_reporting=0, vote_for=1):
+    def __init__(self, contest_code, name, reporting_unit_name, total_ballots_cast,
+            precincts_total=0, precincts_reporting=0, vote_for=1):
         self.contest_code = contest_code
         self.name = name
+        self.reporting_unit_name = reporting_unit_name
+        self.total_ballots_cast = total_ballots_cast
         self.candidates = []
         self.precincts_total = precincts_total
         self.precincts_reporting = precincts_reporting
@@ -153,7 +176,6 @@ class SummaryParser(object):
                 party=parsed['party'],
                 race=race,
                 full_name=parsed['candidate_name'],
-                reporting_unit_name=parsed['reporting_unit_name'],
             )
             race.candidates.append(result)
     
@@ -164,6 +186,8 @@ class SummaryParser(object):
             race = Race(
                 contest_code=attrs['contest_code'],
                 name=attrs['race_name'],
+                reporting_unit_name=attrs['reporting_unit_name'],
+                total_ballots_cast=attrs['race_total_ballots_cast'],
                 precincts_total=attrs['precincts_total'],
                 precincts_reporting=attrs['precincts_reporting'],
                 vote_for=attrs['vote_for'],
@@ -189,8 +213,8 @@ class SummaryClient(object):
 
     def fetch(self):
         url = self.get_url()
-        r = requests.get(url)
-        self._parser.parse(r.text)
+        response = requests.get(url)
+        self._parser.parse(response.content.decode("utf-8"))
 
     @property
     def races(self):
