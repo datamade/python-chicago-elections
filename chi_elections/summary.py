@@ -35,7 +35,6 @@ class FixedWidthField(object):
         return index
 
     def parse(self, s):
-
         val = s[self.index:self.index + self.length]
         val = val.strip()
         if self.transform is None:
@@ -214,8 +213,8 @@ class SummaryClient(object):
 
     def fetch(self):
         url = self.get_url()
-        r = requests.get(url)
-        self._parser.parse(r.text)
+        response = requests.get(url)
+        self._parser.parse(response.content.decode("utf-8"))
 
     @property
     def races(self):
