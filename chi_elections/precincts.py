@@ -8,7 +8,7 @@ import lxml.html
 import requests
 
 class Election(object):
-    ELECTION_URL = 'https://chicagoelections.com/en/election-results.asp'
+    ELECTION_URL = 'https://chicagoelections.gov/en/election-results.asp'
     
     def __init__(self, elec_code, name, session):
         self.elec_code = elec_code
@@ -48,7 +48,7 @@ class Election(object):
         return races
     
 class Race(object):
-    RESULTS_URL = 'https://chicagoelections.com/en/data-export.asp'
+    RESULTS_URL = 'https://chicagoelections.gov/en/data-export.asp'
     
     def __init__(self, elec_code, name=None, number=None, session=None):
         self.elec_code = elec_code
@@ -131,8 +131,7 @@ class Race(object):
 
 def elections(session=None):
     '''List all available elections'''
-
-    election_url = 'https://chicagoelections.com/en/election-results.html'
+    election_url = 'https://chicagoelections.gov/en/election-results.html'
 
     if session is None:
         session = requests.Session()

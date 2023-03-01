@@ -3,13 +3,13 @@ Parse fixed-width summary file.
 
 This file lives at
 
-http://www.chicagoelections.com/results/ap/
+http://www.chicagoelections.gov/results/ap/
 
 before election day, for testing.
 
 It lives at
 
-www.chicagoelections.com/ap/
+www.chicagoelections.gov/ap/
 
 on election night.
 
