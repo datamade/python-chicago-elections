@@ -28,7 +28,7 @@ class Election(object):
     def races(self):
         response = self.session.get(self.url,
                                     params={'election': self.elec_code})
-        page = lxml.html.fromstring(response.content.decode('utf-8'))
+        page = lxml.html.fromstring(response.text)
         option_els = page.xpath(
             "//select[@name='race']/option")
 
@@ -74,7 +74,7 @@ class Race(object):
         response = self.session.get(self.RESULTS_URL,
                                     data={'election': self.elec_code,
                                           'race': self.number})
-        page = lxml.html.fromstring(response.content.decode('utf-8'))
+        page = lxml.html.fromstring(response.text)
 
         tables = page.xpath('//table')
         tables.pop(0)  # Discard total
@@ -130,7 +130,6 @@ class Race(object):
 
         return dict(results_d)
 
-            
 
 def elections(session=None):
     '''List all available elections'''
@@ -143,7 +142,7 @@ def elections(session=None):
         session = session
     
     response = session.get(election_url)
-    page = lxml.html.fromstring(response.content.decode('utf-8'))
+    page = lxml.html.fromstring(response.text)
 
     election_links = page.xpath("//a[starts-with(@href, 'election-results.asp?election=')]")
 
