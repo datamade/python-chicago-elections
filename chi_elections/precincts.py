@@ -8,7 +8,7 @@ import lxml.html
 import requests
 
 class Election(object):
-    ELECTION_URL = 'https://chicagoelections.com/en/election-results.asp'
+    ELECTION_URL = 'https://chicagoelections.gov/en/election-results.asp'
     
     def __init__(self, elec_code, name, session):
         self.elec_code = elec_code
@@ -48,7 +48,7 @@ class Election(object):
         return races
     
 class Race(object):
-    RESULTS_URL = 'https://chicagoelections.com/en/data-export.asp'
+    RESULTS_URL = 'https://chicagoelections.gov/en/election-results-specifics.asp'
     
     def __init__(self, elec_code, name=None, number=None, session=None):
         self.elec_code = elec_code
@@ -72,33 +72,36 @@ class Race(object):
         results_d = {}
         
         response = self.session.get(self.RESULTS_URL,
-                                    params = {'election': self.elec_code,
-                                              'race': self.number})
+                                    data={'election': self.elec_code,
+                                          'race': self.number})
         page = lxml.html.fromstring(response.text)
 
         tables = page.xpath('//table')
-
-        total = tables.pop(0)
-        header_row = total.xpath('./tr')[0]
-        keys = ['precinct']
-        for cell in header_row.xpath('./td//text()'):
-            keys.append(cell.strip().replace("''", "'"))
+        tables.pop(0)  # Discard total
 
         for table in tables:
-            rows = table.xpath('./tr')
-            ward = rows.pop(0).xpath('./td//text()')[0]
+            title, header = table.xpath('./thead/tr')
+            ward, = title.xpath('./th/b/text()')
             ward_num = int(ward.split()[-1])
-            rows.pop(0) # ignore repeated header row
-            for row in rows:
+            keys = [field.strip() for field in header.xpath('./td/b/text()')]
+
+            for row in table.xpath('./tr'):
                 votes = {}
+
                 for key, cell in zip(keys, row.xpath('./td//text()')):
-                    if cell == 'Total': # ignore ward subtotals
+                    if cell == 'Total':  # Ignore ward subtotals
                         break
-                    if '%' in key or key == 'Votes': # ignore derived vars
+
+                    if key == 'Precinct':
+                        precinct = int(cell)
                         continue
+
+                    elif key == '%':  # Ignore derived vars
+                        continue
+
                     votes[key] = int(cell.strip().replace(',', ''))
+
                 else:
-                    precinct = votes.pop('precinct')
                     results_d[(ward_num, precinct)] = votes
 
         return results_d
@@ -127,12 +130,11 @@ class Race(object):
 
         return dict(results_d)
 
-            
 
 def elections(session=None):
     '''List all available elections'''
 
-    election_url = 'https://chicagoelections.com/en/election-results.html'
+    election_url = 'https://chicagoelections.gov/en/election-results.html'
 
     if session is None:
         session = requests.Session()

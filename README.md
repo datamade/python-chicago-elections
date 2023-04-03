@@ -71,8 +71,6 @@ client = SummaryClient(url='http://www.chicagoelections.com/results/ap/summary.t
 Precinct Results
 ----------------
 
-**N.b., The format of precinct results has changed and needs to be updated.**
-
 After election night, precinct-level results are published to https://chicagoelections.com/en/election-results.html.  The results are HTML files, so we have to scrape the results from HTML tables.
 
 ### Results client
