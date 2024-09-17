@@ -10,7 +10,7 @@ from chi_elections.summary import (FixedWidthField, ResultParser, SummaryClient,
 TEST_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
     'data')
 SUMMARY_TEST_FILENAME = os.path.join(TEST_DATA_DIR, 'results', 'ap',
-    'summary.txt')
+    'SummaryExport.txt')
 
 class ParserTestCase(TestCase):
 
@@ -20,14 +20,14 @@ class ParserTestCase(TestCase):
     def test_parse(self):
         with open(SUMMARY_TEST_FILENAME, 'r') as f:
             self.parser.parse(f.read())
-            self.assertEqual(len(self.parser.races), 98)
+            self.assertEqual(len(self.parser.races), 88)
 
             mayor = next(r for r in self.parser.races if r.name == "Mayor")
-            self.assertEqual(len(mayor.candidates), 5)
+            self.assertEqual(len(mayor.candidates), 9)
 
-            rahm = next(c for c in mayor.candidates
-                        if c.full_name == "RAHM EMANUEL")
-            self.assertEqual(rahm.vote_total, 0)
+            lori = next(c for c in mayor.candidates
+                        if c.full_name == "LORI E. LIGHTFOOT")
+            self.assertEqual(lori.vote_total, 0)
 
            
 class FixedWidthFieldTestCase(TestCase):
@@ -48,48 +48,33 @@ class FixedWidthFieldTestCase(TestCase):
 class ResultParserTestCase(TestCase):
     def test_parse_line(self):
         parser = ResultParser()
-        line = "0010001206900000000000NON       Mayor                                                   RAHM EMANUEL                          City Of Chicago          001"
+        line = "2000010000700000000000012354380000000Mayor                                                                 LORI E. LIGHTFOOT                                                                                      MUNICIPAL                                         000080129101"
         result = parser.parse_line(line)
-        self.assertEqual(result['contest_code'], 10)
-        self.assertEqual(result['candidate_number'], 1)
-        self.assertEqual(result['precincts_total'], 2069)
-        self.assertEqual(result['vote_total'], 0)
-        self.assertEqual(result['precincts_reporting'], 0)
-        self.assertEqual(result['party'], "NON")
-        self.assertEqual(result['race_name'], "Mayor")
-        self.assertEqual(result['candidate_name'], "RAHM EMANUEL")
-        self.assertEqual(result['reporting_unit_name'], "City Of Chicago")
-        self.assertEqual(result['vote_for'], 1)
-
-    def test_parse_line_no_text(self):
-        parser = ResultParser()
-        line = "0010001206900000000000"
-        result = parser.parse_line(line)
-        self.assertEqual(result['contest_code'], 10)
-        self.assertEqual(result['candidate_number'], 1)
-        self.assertEqual(result['precincts_total'], 2069)
+        self.assertEqual(result['contest_code'], 1)
+        self.assertEqual(result['candidate_number'], 7)
+        self.assertEqual(result['precincts_total'], 1291)
         self.assertEqual(result['vote_total'], 0)
         self.assertEqual(result['precincts_reporting'], 0)
         self.assertEqual(result['party'], "")
-        self.assertEqual(result['race_name'], "")
-        self.assertEqual(result['candidate_name'], "")
-        self.assertEqual(result['reporting_unit_name'], "")
-        self.assertEqual(result['vote_for'], None)
+        self.assertEqual(result['race_name'], "Mayor")
+        self.assertEqual(result['candidate_name'], "LORI E. LIGHTFOOT")
+        self.assertEqual(result['reporting_unit_name'], "MUNICIPAL")
+        self.assertEqual(result['vote_for'], 1)
 
     def test_parse_line_utf8(self):
         parser = ResultParser()
-        line = "0023012034800000000000DEM       Delegate, National Convention 4th DEM                   Álvaro R. Obregón (Sanders)           4th Congressional Distric005"
+        line = "2000340014700000000000000191530000000Alderperson 31st Ward                                                 ESTEBAN BURGOA ONTAÑON                                                                                 WARD                                              000090002301"
         result = parser.parse_line(line)
-        self.assertEqual(result['contest_code'], 23)
-        self.assertEqual(result['candidate_number'], 12)
-        self.assertEqual(result['precincts_total'], 348)
+        self.assertEqual(result['contest_code'], 34)
+        self.assertEqual(result['candidate_number'], 147)
+        self.assertEqual(result['precincts_total'], 23)
         self.assertEqual(result['vote_total'], 0)
         self.assertEqual(result['precincts_reporting'], 0)
-        self.assertEqual(result['party'], "DEM")
-        self.assertEqual(result['race_name'], "Delegate, National Convention 4th DEM")
-        self.assertEqual(result['candidate_name'], u"Álvaro R. Obregón (Sanders)")
-        self.assertEqual(result['reporting_unit_name'], "4th Congressional Distric")
-        self.assertEqual(result['vote_for'], 5)
+        self.assertEqual(result['party'], "")
+        self.assertEqual(result['race_name'], "Alderperson 31st Ward")
+        self.assertEqual(result['candidate_name'], u"ESTEBAN BURGOA ONTAÑON")
+        self.assertEqual(result['reporting_unit_name'], "WARD")
+        self.assertEqual(result['vote_for'], 1)
 
 
 class SummaryClientTestCase(TestCase):
@@ -101,11 +86,11 @@ class SummaryClientTestCase(TestCase):
             responses.add(responses.GET, client.get_url(), body=response_body,
                 content_type='text/plain')    
             client.fetch() 
-            self.assertEqual(len(client.races), 98)
+            self.assertEqual(len(client.races), 88)
 
             mayor = next(r for r in client.races if r.name == "Mayor")
-            self.assertEqual(len(mayor.candidates), 5)
+            self.assertEqual(len(mayor.candidates), 9)
 
-            rahm = next(c for c in mayor.candidates
-                        if c.full_name == "RAHM EMANUEL")
-            self.assertEqual(rahm.vote_total, 0)
+            lori = next(c for c in mayor.candidates
+                        if c.full_name == "LORI E. LIGHTFOOT")
+            self.assertEqual(lori.vote_total, 0)

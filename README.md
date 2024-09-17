@@ -3,54 +3,47 @@ chi-elections
 
 [![Build Status](https://travis-ci.org/datamade/python-chicago-elections.svg?branch=master)](https://travis-ci.org/datamade/python-chicago-elections)
 
-chi-elections is a Python package for loading and parsing election results from the [Chicago Board of Elections](http://www.chicagoelections.com/).
+chi-elections is a Python package for loading and parsing election results from the [Chicago Board of Elections](https://www.chicagoelections.gov/).
 
 Summary Results
 ---------------
 
 The Board of Elections provides election-night results at a racewide level.  The file lives at
 
-http://www.chicagoelections.com/results/ap/summary.txt
+https://chicagoelections.gov/results/ap/
 
 before election day, for testing.
 
 It lives at
 
-http://www.chicagoelections.com/ap/summary.txt
+https://chicagoelections.gov/ap
 
 on election night.
 
+Per the Chicago Board of Elections, the results file will contain candidate and race names on election night and be kept updated until all votes are counted.
+
 ### Text layout
 
-From http://www.chicagoelections.com/results/ap/text_layout.txt:
+From https://chicagoelections.gov/results/ap/SummaryExportFormat.xls:
 
 ```
-Summary Export File Format      Length  Column Position
-Contest Code                    4       1-4
-Candidate Number                3       5-7
-Num. Eligible Precincts         4       8-11
-Votes                           7       12-18
-Num. Completed precincts        4       19-22
-Party Abbreviation              3       23-25
-Political Subdivision Abbrev    7       26-32
-Contest name                    56      33-88
-Candidate Name                  38      89-126
-Political subdivision name      25      127-151
-Vote For                        3       152-154
+Summary Export File Format           Length    Column Position
+Record type                          1         1
+Global contest order                 5         2-6
+Global choice order                  5         7-11
+# Completed precincts                5         12-16
+Votes                                7         17-23
+Contest Total registration           7         24-30
+Contest Total ballots cast           7         31-37
+Contest Name                        70         38-107
+Choice Name                         50         108-157
+Choice Party Name                   50         158-207
+Choice Party Abbreviation            3         208-210
+District Type Name                  50         211-260
+District Type Global Order           5         261-265
+# of Eligible Precincts              5         266-270
+Vote For                             2         271-272
 ```
-
-### Gotchas
-
-Prior to election night, the test file will include all fields.  At some point on election night, the file will only contain the numeric values in the first 22 columns.
-
-This means that you need to:
-
-* Make sure you save candidate names in some way, like a database, before election night
-* Make sure you store ballot order (Candidate Number in the text layout above) with the candidate.  You'll need to use this, in combination with Contest Code, to look up the cached candidates.
-
-At some point at the end of election night, the results file will no longer be available at http://www.chicagoelections.com/ap/summary.txt and will be available at http://www.chicagoelections.com/results/ap/summary.txt
-.  ~~However, it will not be updated. You'll need to scrape, enter or load results in some other way if you need updates after election night.~~ As of the April 2, 2019 municipal election, the Chicago Board of Elections says it will keep summary.txt updated until all votes are counted.
-
 
 ### Results client
 
@@ -78,15 +71,17 @@ client = SummaryClient(url='http://www.chicagoelections.com/results/ap/summary.t
 Precinct Results
 ----------------
 
+**N.b., The format of precinct results has changed and needs to be updated.**
+
 After election night, precinct-level results are published to https://chicagoelections.com/en/election-results.html.  The results are HTML files, so we have to scrape the results from HTML tables.
 
 ### Results client
 
 To access the results:
 
+```python
 from chi_elections import elections
 
-```python
 muni_elections = [election for name, election in
                   elections().items() if 'municipal' in name.lower()]
 
