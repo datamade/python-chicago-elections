@@ -1,3 +1,7 @@
 *.egg-info
 *.pyc
 *.swp
+__pycache__/
+venv/
+build/
+dist/

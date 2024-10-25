@@ -4,7 +4,7 @@ Parse tabular precinct-level results.
 import functools
 import collections
 
-import lxml.html
+import lxml
 import requests
 
 class Election(object):

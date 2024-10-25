@@ -16,12 +16,14 @@ on election night.
 This file provides racewide results.
 
 """
+
 from collections import OrderedDict
 
 import requests
 
 from .constants import SUMMARY_URL
 from .transforms import replace_single_quotes
+
 
 class FixedWidthField(object):
     def __init__(self, index, length, transform=None):
@@ -32,7 +34,7 @@ class FixedWidthField(object):
 
     def parse(self, s):
 
-        val = s[self.index:self.index + self.length]
+        val = s[self.index : self.index + self.length]
         val = val.strip()
         if self.transform is None:
             return val
@@ -45,11 +47,11 @@ class FixedWidthField(object):
 
 class FixedWidthParserMeta(type):
     def __new__(cls, name, parents, dct):
-        dct['_fields'] = []
+        dct["_fields"] = []
         for k, v in list(dct.items()):
             if isinstance(v, FixedWidthField):
                 v.name = k
-                dct['_fields'].append(v)
+                dct["_fields"].append(v)
                 del dct[k]
 
         new_cls = super(FixedWidthParserMeta, cls).__new__(cls, name, parents, dct)
@@ -63,7 +65,7 @@ class FixedWidthParser(object, metaclass=FixedWidthParserMeta):
         for field in self._fields:
             attrs[field.name] = field.parse(line)
 
-        return attrs 
+        return attrs
 
 
 class ResultParser(FixedWidthParser):
@@ -79,58 +81,56 @@ class ResultParser(FixedWidthParser):
     # Candidate Name                       38        89-126
     # Political subdivision name           25        127-151
     # Vote For                             3         152-154
-    contest_code = FixedWidthField(0, 4, transform=int)
-    candidate_number = FixedWidthField(4, 3, transform=int)
-    precincts_total = FixedWidthField(7, 4, transform=int)
-    vote_total = FixedWidthField(11, 7, transform=int)
-    precincts_reporting = FixedWidthField(18, 4, transform=int)
-    party = FixedWidthField(22, 3)
-    reporting_unit_name = FixedWidthField(25, 7)
-    race_name = FixedWidthField(32, 56)
-    candidate_name = FixedWidthField(88, 38, transform=replace_single_quotes)
-    reporting_unit_name = FixedWidthField(126, 25)
-    vote_for = FixedWidthField(151, 3, transform=int)
+    completed_precincts = FixedWidthField(11, 5, transform=int)
+    total_registration = FixedWidthField(23, 7, transform=int)
+    vote_for = FixedWidthField(30, 7, transform=int)
+    race_name = FixedWidthField(37, 70)
+    candidate_name = FixedWidthField(107, 50, transform=replace_single_quotes)
+    party = FixedWidthField(157, 40)
+    race_type = FixedWidthField(197, 50)
+    precincts_total = FixedWidthField(265, 5, transform=int)
 
 
 class Result(object):
-    def __init__(self, candidate_number, full_name, party, race, vote_total,
-            reporting_unit_name):
-        self.candidate_number = candidate_number
+    def __init__(
+        self, full_name, party, race, vote_for,
+    ):
         self.full_name = full_name
         self.party = party
         self.race = race
-        self.vote_total = vote_total
+        self.vote_for = vote_for
 
     def __str__(self):
         return "{}: {}d".format(self.name, self.vote_total)
 
     def serialize(self):
-        return OrderedDict((
-            ('candidate_number', self.candidate_number),
-            ('full_name', self.full_name),
-            ('party', self.party),
-            ('vote_total',self.vote_total),
-        ))
+        return OrderedDict(
+            (
+                ("candidate_number", self.candidate_number),
+                ("full_name", self.full_name),
+                ("party", self.party),
+                ("vote_total", self.vote_total),
+            )
+        )
 
 
 class Race(object):
-    def __init__(self, contest_code, name, precincts_total=0,
-            precincts_reporting=0, vote_for=1):
-        self.contest_code = contest_code
+    def __init__(self, name, precincts_total=0, precincts_reporting=0, vote_for=1):
         self.name = name
         self.candidates = []
         self.precincts_total = precincts_total
-        self.precincts_reporting = precincts_reporting
+        # self.precincts_reporting = precincts_reporting
         self.vote_for = vote_for
 
     def serialize(self):
-        return OrderedDict((
-            ('contest_code', self.contest_code),
-            ('race_name', self.name),
-            ('precincts_total', self.precincts_total),
-            ('precincts_reporting', self.precincts_reporting),
-            ('vote_for', self.vote_for),
-        ))
+        return OrderedDict(
+            (
+                ("race_name", self.name),
+                ("precincts_total", self.precincts_total),
+                # ("precincts_reporting", self.precincts_reporting),
+                ("vote_for", self.vote_for),
+            )
+        )
 
     def __str__(self):
         return self.name
@@ -148,34 +148,32 @@ class SummaryParser(object):
             parsed = self._result_parser.parse_line(line)
             race = self.get_or_create_race(parsed)
             result = Result(
-                candidate_number=parsed['candidate_number'],    
-                vote_total=parsed['vote_total'],
-                party=parsed['party'],
+                vote_for=parsed["vote_for"],
+                party=parsed["party"],
                 race=race,
-                full_name=parsed['candidate_name'],
-                reporting_unit_name=parsed['reporting_unit_name'],
+                full_name=parsed["candidate_name"],
+                # reporting_unit_name=parsed['reporting_unit_name'],
             )
             race.candidates.append(result)
-    
+
     def get_or_create_race(self, attrs):
         try:
-            race = self._race_lookup[attrs['contest_code']]
+            race = self._race_lookup[attrs["race_name"]]
         except KeyError:
             race = Race(
-                contest_code=attrs['contest_code'],
-                name=attrs['race_name'],
+                name=attrs["race_name"],
                 precincts_total=attrs['precincts_total'],
-                precincts_reporting=attrs['precincts_reporting'],
-                vote_for=attrs['vote_for'],
+                # precincts_reporting=attrs['precincts_reporting'],
+                vote_for=attrs["vote_for"],
             )
-            self._race_lookup[attrs['contest_code']] = race
+            self._race_lookup[attrs["race_name"]] = race
             self.races.append(race)
-        
+
         return race
 
 
 class SummaryClient(object):
-    DEFAULT_URL = SUMMARY_URL 
+    DEFAULT_URL = SUMMARY_URL
 
     def __init__(self, url=None):
         if url is None:
