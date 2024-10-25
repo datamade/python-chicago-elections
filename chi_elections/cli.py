@@ -9,10 +9,10 @@ from .constants import SUMMARY_URL, TEST_SUMMARY_URL
 from .precincts import Election
 from .summary import SummaryClient, SummaryParser
 
-if sys.version_info < 3:
-    # Wrap sys.stdout into a StreamWriter to allow writing unicode.
-    # See https://wiki.python.org/moin/PrintFails
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
+# if sys.version_info < 3:
+#     # Wrap sys.stdout into a StreamWriter to allow writing unicode.
+#     # See https://wiki.python.org/moin/PrintFails
+#     sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 @click.group()
 def main():
