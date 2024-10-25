@@ -106,10 +106,10 @@ class Result(object):
     def serialize(self):
         return OrderedDict(
             (
-                ("candidate_number", self.candidate_number),
+                # ("candidate_number", self.candidate_number),
                 ("full_name", self.full_name),
                 ("party", self.party),
-                ("vote_total", self.vote_total),
+                ("vote_for", self.vote_for),
             )
         )
 
