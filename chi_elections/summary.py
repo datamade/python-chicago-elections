@@ -97,24 +97,24 @@ class ResultParser(FixedWidthParser):
 class Result(object):
     def __init__(
         self,
-        full_name,
+        choice_name,
         party,
         race,
         votes,
     ):
-        self.full_name = full_name
+        self.choice_name = choice_name
         self.party = party
         self.race = race
         self.votes = votes
 
     def __str__(self):
-        return "{}: {}d".format(self.name, self.votes)
+        return "{}: {}d".format(self.choice_name, self.votes)
 
     def serialize(self):
         return OrderedDict(
             (
                 # ("candidate_number", self.candidate_number),
-                ("full_name", self.full_name),
+                ("choice_name", self.choice_name),
                 ("party", self.party),
                 ("votes", self.votes),
             )
@@ -170,7 +170,7 @@ class SummaryParser(object):
                 votes=parsed["votes"],
                 party=parsed["party"],
                 race=race,
-                full_name=parsed["choice_name"],
+                choice_name=parsed["choice_name"],
             )
             race.candidates.append(result)
 
