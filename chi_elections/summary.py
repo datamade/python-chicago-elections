@@ -125,6 +125,7 @@ class Race(object):
     def __init__(
         self,
         name,
+        district_type,
         eligible_precincts=0,
         completed_precincts=0,
         total_registration=0,
@@ -132,6 +133,7 @@ class Race(object):
         vote_for=1,
     ):
         self.name = name
+        self.district_type = district_type
         self.candidates = []
         self.eligible_precincts = eligible_precincts
         self.completed_precincts = completed_precincts
@@ -143,6 +145,7 @@ class Race(object):
         return OrderedDict(
             (
                 ("race_name", self.name),
+                ("district_type", self.district_type),
                 ("total_registration", self.total_registration),
                 ("total_ballots_cast", self.total_ballots_cast),
                 ("eligible_precincts", self.eligible_precincts),
@@ -179,12 +182,12 @@ class SummaryParser(object):
             race = self._race_lookup[attrs["race_name"]]
         except KeyError:
             race = Race(
-                eligible_precincts=attrs["eligible_precincts"],
+                district_type=attrs["district_type"],
                 name=attrs["race_name"],
+                eligible_precincts=attrs["eligible_precincts"],
                 completed_precincts=attrs["completed_precincts"],
                 total_ballots_cast=attrs["total_ballots_cast"],
                 vote_for=attrs["vote_for"],
-                district_type=attrs["district_type"]
             )
             self._race_lookup[attrs["race_name"]] = race
             self.races.append(race)
