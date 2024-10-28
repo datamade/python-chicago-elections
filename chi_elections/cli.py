@@ -45,6 +45,7 @@ def summary(file, test):
        'vote_for',
        'choice_name',
        'party',
+       'district_type',
        'votes',
     ]
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
