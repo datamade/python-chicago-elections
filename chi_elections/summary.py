@@ -184,6 +184,7 @@ class SummaryParser(object):
                 completed_precincts=attrs["completed_precincts"],
                 total_ballots_cast=attrs["total_ballots_cast"],
                 vote_for=attrs["vote_for"],
+                district_type=attrs["district_type"]
             )
             self._race_lookup[attrs["race_name"]] = race
             self.races.append(race)
