@@ -37,14 +37,15 @@ def summary(file, test):
         races = client.races
 
     fieldnames = [
-       'contest_code',
        'race_name',
-       'precincts_total',
-       'precincts_reporting',
+       'completed_precincts',
+       'eligible_precincts',
+       'total_registration',
+       'total_ballots_cast',
        'vote_for',
-       'candidate_number',
-       'full_name',
+       'choice_name',
        'party',
+       'race_type',
        'vote_total',
     ]
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)

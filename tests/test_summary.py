@@ -46,16 +46,19 @@ class ParserTestCase(TestCase):
 class ResultParserTestCase(TestCase):
     def test_parse_line(self):
         parser = ResultParser()
-        line = "2000060001200000000000000722450000000U.S. Representative, 2nd District                                     Robin Kelly                                       Democratic                                        DEMCONGRESS                                          000040007801"
+        line = "2000010000101599053951015874470881017U.S. Representative, 2nd District                                     Robin Kelly                                       Democratic                                        DEMCONGRESS                                          000020159901"
         result = parser.parse_line(line)
-        self.assertEqual(result['completed_precincts'], 0)
-        self.assertEqual(result['total_registration'], 72245)
-        self.assertEqual(result['vote_for'], 0)
+        self.assertEqual(result['completed_precincts'], 1599)
+        self.assertEqual(result['total_registration'], 1587447)
+        self.assertEqual(result['total_ballots_cast'], 881017)
+        self.assertEqual(result['votes'], 539510)
         self.assertEqual(result['race_name'], "U.S. Representative, 2nd District")
-        self.assertEqual(result['candidate_name'], "Robin Kelly")
+        self.assertEqual(result['choice_name'], "Robin Kelly")
         self.assertEqual(result['party'], "Democratic")
-        self.assertEqual(result['race_type'], "DEMCONGRESS")
-        self.assertEqual(result['precincts_total'], 78)
+        self.assertEqual(result['party_abbrev'], "DEM")
+        self.assertEqual(result['district_type'], "CONGRESS")
+        self.assertEqual(result['eligible_precincts'], 1599)
+        self.assertEqual(result['vote_for'], 1)
 
     # def test_parse_line_no_text(self):
     #     parser = ResultParser()

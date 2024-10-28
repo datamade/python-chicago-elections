@@ -82,26 +82,33 @@ class ResultParser(FixedWidthParser):
     # Political subdivision name           25        127-151
     # Vote For                             3         152-154
     completed_precincts = FixedWidthField(11, 5, transform=int)
+    votes = FixedWidthField(16, 7, transform=int)
     total_registration = FixedWidthField(23, 7, transform=int)
-    vote_for = FixedWidthField(30, 7, transform=int)
+    total_ballots_cast = FixedWidthField(30, 7, transform=int)
     race_name = FixedWidthField(37, 70)
-    candidate_name = FixedWidthField(107, 50, transform=replace_single_quotes)
+    choice_name = FixedWidthField(107, 50, transform=replace_single_quotes)
     party = FixedWidthField(157, 40)
-    race_type = FixedWidthField(197, 50)
-    precincts_total = FixedWidthField(265, 5, transform=int)
+    party_abbrev = FixedWidthField(207, 3)
+    district_type = FixedWidthField(210, 50)
+    eligible_precincts = FixedWidthField(265, 5, transform=int)
+    vote_for = FixedWidthField(271, 2, transform=int)
 
 
 class Result(object):
     def __init__(
-        self, full_name, party, race, vote_for,
+        self,
+        full_name,
+        party,
+        race,
+        votes,
     ):
         self.full_name = full_name
         self.party = party
         self.race = race
-        self.vote_for = vote_for
+        self.votes = votes
 
     def __str__(self):
-        return "{}: {}d".format(self.name, self.vote_total)
+        return "{}: {}d".format(self.name, self.votes)
 
     def serialize(self):
         return OrderedDict(
@@ -109,25 +116,35 @@ class Result(object):
                 # ("candidate_number", self.candidate_number),
                 ("full_name", self.full_name),
                 ("party", self.party),
-                ("vote_for", self.vote_for),
+                ("votes", self.votes),
             )
         )
 
 
 class Race(object):
-    def __init__(self, name, precincts_total=0, precincts_reporting=0, vote_for=1):
+    def __init__(
+        self,
+        name,
+        eligible_precincts=0,
+        completed_precincts=0,
+        total_registration=0,
+        total_ballots_cast=0,
+        vote_for=1,
+    ):
         self.name = name
         self.candidates = []
-        self.precincts_total = precincts_total
-        # self.precincts_reporting = precincts_reporting
+        self.eligible_precincts = eligible_precincts
+        self.completed_precincts = completed_precincts
         self.vote_for = vote_for
 
     def serialize(self):
         return OrderedDict(
             (
                 ("race_name", self.name),
-                ("precincts_total", self.precincts_total),
-                # ("precincts_reporting", self.precincts_reporting),
+                ("total_registration", self.total_registration),
+                ("total_ballots_cast", self.total_ballots_cast),
+                ("eligible_precincts", self.eligible_precincts),
+                ("completed_precincts", self.completed_precincts),
                 ("vote_for", self.vote_for),
             )
         )
@@ -148,11 +165,10 @@ class SummaryParser(object):
             parsed = self._result_parser.parse_line(line)
             race = self.get_or_create_race(parsed)
             result = Result(
-                vote_for=parsed["vote_for"],
+                votes=parsed["votes"],
                 party=parsed["party"],
                 race=race,
-                full_name=parsed["candidate_name"],
-                # reporting_unit_name=parsed['reporting_unit_name'],
+                full_name=parsed["choice_name"],
             )
             race.candidates.append(result)
 
@@ -161,9 +177,10 @@ class SummaryParser(object):
             race = self._race_lookup[attrs["race_name"]]
         except KeyError:
             race = Race(
+                eligible_precincts=attrs["eligible_precincts"],
                 name=attrs["race_name"],
-                precincts_total=attrs['precincts_total'],
-                # precincts_reporting=attrs['precincts_reporting'],
+                completed_precincts=attrs["completed_precincts"],
+                total_ballots_cast=attrs["total_ballots_cast"],
                 vote_for=attrs["vote_for"],
             )
             self._race_lookup[attrs["race_name"]] = race
