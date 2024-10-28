@@ -135,6 +135,7 @@ class Race(object):
         self.candidates = []
         self.eligible_precincts = eligible_precincts
         self.completed_precincts = completed_precincts
+        self.total_registration = total_registration
         self.vote_for = vote_for
 
     def serialize(self):
