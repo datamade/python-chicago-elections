@@ -3,9 +3,10 @@ Parse tabular precinct-level results.
 """
 import functools
 import collections
-
-import lxml
 import requests
+
+from lxml import html
+
 
 class Election(object):
     ELECTION_URL = 'https://chicagoelections.gov/en/election-results.asp'
@@ -28,7 +29,7 @@ class Election(object):
     def races(self):
         response = self.session.get(self.url,
                                     params={'election': self.elec_code})
-        page = lxml.html.fromstring(response.text)
+        page = html.fromstring(response.text)
         option_els = page.xpath(
             "//select[@name='race']/option")
 
@@ -74,7 +75,7 @@ class Race(object):
         response = self.session.get(self.RESULTS_URL,
                                     params = {'election': self.elec_code,
                                               'race': self.number})
-        page = lxml.html.fromstring(response.text)
+        page = html.fromstring(response.text)
 
         tables = page.xpath('//table')
 
@@ -139,7 +140,7 @@ def elections(session=None):
         session = session
     
     response = session.get(election_url)
-    page = lxml.html.fromstring(response.text)
+    page = html.fromstring(response.text)
 
     election_links = page.xpath("//a[starts-with(@href, 'election-results.asp?election=')]")
 
