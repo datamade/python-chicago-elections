@@ -1,6 +1,7 @@
 """
 Parse tabular precinct-level results.
 """
+
 import functools
 import collections
 import requests
@@ -9,8 +10,8 @@ from lxml import html
 
 
 class Election(object):
-    ELECTION_URL = 'https://chicagoelections.gov/en/election-results.asp'
-    
+    ELECTION_URL = "https://chicagoelections.gov/en/election-results.asp"
+
     def __init__(self, elec_code, name, session):
         self.elec_code = elec_code
         self.name = name
@@ -27,30 +28,28 @@ class Election(object):
     @property
     @functools.lru_cache(maxsize=1)
     def races(self):
-        response = self.session.get(self.url,
-                                    params={'election': self.elec_code})
+        response = self.session.get(self.url, params={"election": self.elec_code})
         page = html.fromstring(response.text)
-        option_els = page.xpath(
-            "//select[@name='race']/option")
+        option_els = page.xpath("//select[@name='race']/option")
 
         races = {}
 
         for option_el in option_els:
             name = option_el.text
-            race_num = option_el.get('value')
-            if 'registered voters' in name.lower():
-                self._turnout = Race(self.elec_code,
-                                     name, race_num, self.session)
+            race_num = option_el.get("value")
+            if "registered voters" in name.lower():
+                self._turnout = Race(self.elec_code, name, race_num, self.session)
             else:
-                races[option_el.text] = Race(self.elec_code,
-                                             name,
-                                             race_num, self.session)
+                races[option_el.text] = Race(
+                    self.elec_code, name, race_num, self.session
+                )
 
         return races
-    
+
+
 class Race(object):
-    RESULTS_URL = 'https://chicagoelections.gov/en/data-export.asp'
-    
+    RESULTS_URL = "https://chicagoelections.gov/en/data-export.asp"
+
     def __init__(self, elec_code, name=None, number=None, session=None):
         self.elec_code = elec_code
         self.number = number
@@ -71,35 +70,35 @@ class Race(object):
     @functools.lru_cache(maxsize=1)
     def precincts(self):
         results_d = {}
-        
-        response = self.session.get(self.RESULTS_URL,
-                                    params = {'election': self.elec_code,
-                                              'race': self.number})
+
+        response = self.session.get(
+            self.RESULTS_URL, params={"election": self.elec_code, "race": self.number}
+        )
         page = html.fromstring(response.text)
 
-        tables = page.xpath('//table')
+        tables = page.xpath("//table")
 
         total = tables.pop(0)
-        header_row = total.xpath('./tr')[0]
-        keys = ['precinct']
-        for cell in header_row.xpath('./td//text()'):
+        header_row = total.xpath("./tr")[0]
+        keys = ["precinct"]
+        for cell in header_row.xpath("./td//text()"):
             keys.append(cell.strip().replace("''", "'"))
 
         for table in tables:
-            rows = table.xpath('./tr')
-            ward = rows.pop(0).xpath('./td//text()')[0]
+            rows = table.xpath("./tr")
+            ward = rows.pop(0).xpath("./td//text()")[0]
             ward_num = int(ward.split()[-1])
-            rows.pop(0) # ignore repeated header row
+            rows.pop(0)  # ignore repeated header row
             for row in rows:
                 votes = {}
-                for key, cell in zip(keys, row.xpath('./td//text()')):
-                    if cell == 'Total': # ignore ward subtotals
+                for key, cell in zip(keys, row.xpath("./td//text()")):
+                    if cell == "Total":  # ignore ward subtotals
                         break
-                    if '%' in key or key == 'Votes': # ignore derived vars
+                    if "%" in key or key == "Votes":  # ignore derived vars
                         continue
-                    votes[key] = int(cell.strip().replace(',', ''))
+                    votes[key] = int(cell.strip().replace(",", ""))
                 else:
-                    precinct = votes.pop('precinct')
+                    precinct = votes.pop("precinct")
                     results_d[(ward_num, precinct)] = votes
 
         return results_d
@@ -128,28 +127,30 @@ class Race(object):
 
         return dict(results_d)
 
-            
 
 def elections(session=None):
-    '''List all available elections'''
-    election_url = 'https://chicagoelections.gov/en/election-results.html'
+    """List all available elections"""
+    election_url = "https://chicagoelections.gov/elections/results"
 
     if session is None:
         session = requests.Session()
     else:
         session = session
-    
-    response = session.get(election_url)
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "(KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+    }
+    response = session.get(election_url, headers=headers)
     page = html.fromstring(response.text)
 
-    election_links = page.xpath("//a[starts-with(@href, 'election-results.asp?election=')]")
+    election_links = page.xpath("//a[starts-with(@href, '/elections/results/')]")
 
     elex = {}
 
     for link in election_links:
         name = link.text
-        election_code = link.get('href').split('=')[-1]
+        election_code = link.get("href").split("=")[-1]
         elex[name] = Election(election_code, name, session)
 
     return elex
-        
